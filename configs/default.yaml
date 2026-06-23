@@ -1,0 +1,15 @@
+# Configuração padrão do projeto.
+# Estes valores são referência/documentação; as configurações efetivas são
+# carregadas via Pydantic Settings (variáveis de ambiente e .env).
+
+project_name: ecommerce-recommender
+environment: development
+log_level: INFO
+seed: 42
+
+dataset:
+  name: retailrocket
+  raw_path: data/raw/retailrocket
+
+mlflow:
+  tracking_uri: http://127.0.0.1:5000

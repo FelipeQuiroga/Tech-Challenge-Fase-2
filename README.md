@@ -1,2 +1,98 @@
-# Tech-Challenge-Fase-2
-Projeto da Pos Graduacao de Engenharia de ML 
+# E-commerce Recommender
+
+Sistema de recomendação de produtos de e-commerce baseado no dataset
+[RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset).
+
+Este repositório cobre, por enquanto, apenas as **Etapas 1 (Clean Code e
+Estrutura)** e **2 (Ambiente e Dependências)**. Treinamento, modelo neural,
+Docker, DVC e MLflow serão adicionados em etapas futuras.
+
+## Objetivo
+
+Construir, de forma incremental, um sistema de recomendação de produtos a
+partir do comportamento de usuários (visualizações, carrinho e compras) do
+dataset RetailRocket, com código limpo, ambiente reprodutível e qualidade
+automatizada.
+
+## Estrutura de pastas
+
+```
+.
+├── src/ecommerce_recommender/   # Código-fonte do pacote (src layout)
+│   ├── config.py                # Configurações (Pydantic Settings)
+│   ├── exceptions.py            # Exceções específicas do domínio
+│   └── data_loaders/            # Strategy + Factory de carregadores
+├── tests/                       # Testes (pytest)
+├── data/
+│   ├── raw/                     # Dados brutos (não versionados)
+│   ├── interim/                 # Dados intermediários
+│   └── processed/               # Dados processados
+├── models/                      # Modelos treinados
+├── configs/                     # Configurações em YAML (referência)
+├── scripts/                     # Scripts utilitários
+│   └── validate_env.py          # Validação do ambiente
+└── docs/                        # Documentação
+```
+
+## Instalação com Poetry
+
+Requer **Python 3.14** e **Poetry**.
+
+```bash
+poetry install
+```
+
+## Configuração do `.env`
+
+Copie o exemplo e ajuste os valores conforme necessário:
+
+```bash
+cp .env.example .env
+```
+
+Todas as variáveis podem ser sobrescritas por variáveis de ambiente ou pelo
+arquivo `.env`. As principais são: `ENVIRONMENT`, `PROJECT_NAME`, `LOG_LEVEL`,
+`SEED`, os diretórios de dados/modelos e `MLFLOW_TRACKING_URI`.
+
+## Execução dos testes
+
+```bash
+poetry run pytest
+```
+
+## Lint e formatação (Ruff)
+
+```bash
+poetry run ruff format .
+poetry run ruff check .
+```
+
+## Pre-commit
+
+```bash
+poetry run pre-commit install
+poetry run pre-commit run --all-files
+```
+
+## Validação do ambiente
+
+```bash
+poetry run python scripts/validate_env.py
+```
+
+O script verifica a versão do Python, importa as bibliotecas principais,
+carrega as configurações, garante a existência dos diretórios e informa se o
+CUDA está disponível.
+
+## Onde colocar o dataset
+
+Baixe o dataset do
+[Kaggle](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset),
+extraia os arquivos e coloque-os em:
+
+```
+data/raw/retailrocket/
+```
+
+Os dados brutos **não devem ser adicionados ao Git** (já ignorados no
+`.gitignore`).

@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Ambiente / segredos
+.env
+
+# Testes e cobertura
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Dados brutos e intermediários (não versionar)
+data/raw/*
+data/interim/*
+data/processed/*
+!data/**/.gitkeep
+
+# Modelos treinados
+models/*
+!models/.gitkeep
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# DVC
+/data/**/*.dvc
+
+# IDE / SO
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

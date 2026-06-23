@@ -1,0 +1,77 @@
+[project]
+name = "ecommerce-recommender"
+version = "0.1.0"
+description = "Sistema de recomendação de produtos de e-commerce baseado no dataset RetailRocket."
+authors = [{ name = "Tech Challenge Team", email = "weonmktinteligente@gmail.com" }]
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "torch (>=2.12,<3.0)",
+    "pandas (>=2.2,<3.0)",
+    "numpy (>=2.3,<3.0)",
+    "scikit-learn (>=1.7,<2.0)",
+    "pyarrow (>=22.0,<25.0)",
+    "mlflow (>=3.0,<4.0)",
+    "dvc (>=3.55,<4.0)",
+    "pydantic-settings (>=2.2,<3.0)",
+    "python-dotenv (>=1.0,<2.0)",
+]
+
+[tool.poetry]
+packages = [{ include = "ecommerce_recommender", from = "src" }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.1"
+pytest-cov = "^5.0"
+ruff = "^0.14"
+mypy = "^1.10"
+pre-commit = "^4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+target-version = "py314"
+src = ["src", "tests", "scripts"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "D203", # one-blank-line-before-class (conflicts with D211)
+    "D213", # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D"]
+"scripts/*" = ["D"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.mypy]
+python_version = "3.14"
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=ecommerce_recommender --cov-report=term-missing"
