@@ -39,3 +39,32 @@ def test_loader_missing_path_raises(tmp_path: Path) -> None:
     missing = tmp_path / "does-not-exist"
     with pytest.raises(DatasetPathNotFoundError):
         create_data_loader("retailrocket", missing)
+
+
+def test_load_reads_events_csv(tmp_path: Path) -> None:
+    events_csv = tmp_path / "events.csv"
+    events_csv.write_text(
+        "timestamp,visitorid,event,itemid,transactionid\n"
+        "1433221332117,257597,view,355908,\n"
+        "1433221332118,257597,addtocart,355908,\n"
+        "1433221332119,257597,transaction,355908,4000\n"
+    )
+    loader = create_data_loader("retailrocket", tmp_path)
+
+    events = loader.load()
+
+    assert list(events.columns) == [
+        "timestamp",
+        "visitorid",
+        "event",
+        "itemid",
+        "transactionid",
+    ]
+    assert len(events) == 3
+    assert events.loc[2, "transactionid"] == 4000
+
+
+def test_load_missing_events_file_raises(tmp_path: Path) -> None:
+    loader = create_data_loader("retailrocket", tmp_path)
+    with pytest.raises(DatasetPathNotFoundError):
+        loader.load()

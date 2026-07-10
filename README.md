@@ -3,9 +3,11 @@
 Sistema de recomendação de produtos de e-commerce baseado no dataset
 [RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset).
 
-Este repositório cobre, por enquanto, apenas as **Etapas 1 (Clean Code e
-Estrutura)** e **2 (Ambiente e Dependências)**. Treinamento, modelo neural,
-Docker, DVC e MLflow serão adicionados em etapas futuras.
+Este repositório cobre, por enquanto, as **Etapas 1 (Clean Code e
+Estrutura)**, **2 (Ambiente e Dependências)** e o carregamento/pré-
+processamento inicial dos dados reais. Pipeline DVC, treinamento com
+PyTorch, MLflow, Model Registry e Docker serão adicionados em etapas
+futuras.
 
 ## Objetivo
 
@@ -21,7 +23,8 @@ automatizada.
 ├── src/ecommerce_recommender/   # Código-fonte do pacote (src layout)
 │   ├── config.py                # Configurações (Pydantic Settings)
 │   ├── exceptions.py            # Exceções específicas do domínio
-│   └── data_loaders/            # Strategy + Factory de carregadores
+│   ├── data_loaders/            # Strategy + Factory de carregadores
+│   └── preprocessing/           # Limpeza, encoding e split temporal
 ├── tests/                       # Testes (pytest)
 ├── data/
 │   ├── raw/                     # Dados brutos (não versionados)
@@ -90,12 +93,22 @@ CUDA está disponível.
 ## Onde colocar o dataset
 
 Baixe o dataset do
-[Kaggle](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset),
-extraia os arquivos e coloque-os em:
+[Kaggle](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset)
+(login necessário, sem necessidade de token de API), extraia os arquivos e
+coloque-os em:
 
 ```
 data/raw/retailrocket/
+├── events.csv
+├── item_properties_part1.csv
+├── item_properties_part2.csv
+└── category_tree.csv
 ```
 
 Os dados brutos **não devem ser adicionados ao Git** (já ignorados no
-`.gitignore`).
+`.gitignore`). O versionamento reprodutível desses dados via DVC será
+adicionado em uma etapa futura.
+
+`RetailRocketDataLoader.load()` lê apenas `events.csv` (2,75M eventos de
+navegação — views, adições ao carrinho e transações), que é a fonte de
+interações usuário-item usada pelo pipeline de recomendação.
