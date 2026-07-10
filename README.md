@@ -36,9 +36,12 @@ automatizada.
 
 ## Instalação com Poetry
 
-Requer **Python 3.14** e **Poetry**.
+Requer **Python 3.14** e **Poetry ≥ 2.0** (o `pyproject.toml` usa o formato
+PEP 621 — `[project] dependencies`, que só é totalmente suportado a partir do
+Poetry 2.0; versões anteriores falham em `poetry check`/`poetry install`).
 
 ```bash
+poetry env use 3.14
 poetry install
 ```
 
