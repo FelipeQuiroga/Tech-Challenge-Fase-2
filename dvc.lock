@@ -1,0 +1,72 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python scripts/preprocess.py
+    deps:
+    - path: data/raw/retailrocket
+      hash: md5
+      md5: 19cdee87944c59fc15c51396fe37cd88.dir
+      size: 987498023
+      nfiles: 4
+    - path: scripts/preprocess.py
+      hash: md5
+      md5: a25419c79239c41399bfa8c8c26eddf8
+      size: 1394
+    - path: src/ecommerce_recommender/data_loaders
+      hash: md5
+      md5: f101a42052cb4dafe6093b417278961f.dir
+      size: 12936
+      nfiles: 8
+    - path: src/ecommerce_recommender/preprocessing/cleaning.py
+      hash: md5
+      md5: afe236d63bbdc8b21096d3fb6bb3959b
+      size: 719
+    outs:
+    - path: data/interim/events_clean.parquet
+      hash: md5
+      md5: 0c885411a48512f91cab0aa000f454c6
+      size: 33149377
+  feature_eng:
+    cmd: python scripts/feature_eng.py
+    deps:
+    - path: data/interim/events_clean.parquet
+      hash: md5
+      md5: 0c885411a48512f91cab0aa000f454c6
+      size: 33149377
+    - path: scripts/feature_eng.py
+      hash: md5
+      md5: e89a3b4132acc477c9f7b4c83a4511af
+      size: 2886
+    - path: src/ecommerce_recommender/preprocessing/encoding.py
+      hash: md5
+      md5: 2f1abc31bcae030833a660b05b80d2d2
+      size: 2590
+    - path: src/ecommerce_recommender/preprocessing/splitting.py
+      hash: md5
+      md5: d429e0f5e496928a5424d73e852b541c
+      size: 1774
+    params:
+      params.yaml:
+        split.test_fraction: 0.1
+        split.val_fraction: 0.1
+    outs:
+    - path: data/processed/item_id_map.json
+      hash: md5
+      md5: 6ab830e61e52e679e12f4605063423ca
+      size: 4063883
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 69c1a3ab54c930e6a530e1a0ab9ae65e
+      size: 5837536
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: ef0a5aea44c0b3fb4c0b201523d7df2b
+      size: 40578497
+    - path: data/processed/user_id_map.json
+      hash: md5
+      md5: 29a5b7c2a54dd3ff793a63e624e3b41e
+      size: 25929380
+    - path: data/processed/val.parquet
+      hash: md5
+      md5: 73851f9d5bccbf1ea4ff511529cac7ce
+      size: 5834092

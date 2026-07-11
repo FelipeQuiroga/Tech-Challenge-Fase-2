@@ -39,15 +39,32 @@ independentemente:
   teste por corte cronológico (sem embaralhar), evitando vazamento de
   informação futura para o passado.
 
-Essas funções ainda não persistem em `data/interim`/`data/processed` — essa
-orquestração (leitura → limpeza → encoding → split → escrita em disco) será
-feita pelos scripts de CLI do pipeline DVC (`dvc.yaml`), em uma etapa futura,
-que apenas chamam essas funções.
+A orquestração (leitura → limpeza → encoding → split → escrita em disco) fica
+nos scripts de CLI (`scripts/preprocess.py`, `scripts/feature_eng.py`), que
+apenas chamam essas funções e persistem os resultados em
+`data/interim`/`data/processed` — mantendo a lógica de negócio testável
+independentemente da orquestração/IO.
+
+## Pipeline DVC
+
+`dvc.yaml` define dois estágios, executáveis via `dvc repro`:
+
+1. **`preprocess`**: `scripts/preprocess.py` — `RetailRocketDataLoader.load()`
+   + `clean_events()` → `data/interim/events_clean.parquet`.
+2. **`feature_eng`**: `scripts/feature_eng.py` — `encode_user_item_ids()` +
+   `split_by_time()` (parâmetros `split.val_fraction`/`split.test_fraction`
+   em `params.yaml`) → `data/processed/{train,val,test}.parquet` e
+   `{user,item}_id_map.json`.
+
+O dataset bruto (`data/raw/retailrocket/`) é rastreado por
+`data/raw/retailrocket.dvc` e versionado em um remote local
+(`.dvc-storage/`, configurado em `.dvc/config`). Cada estágio declara seus
+`deps` (script + módulos de origem + dados de entrada) e `outs`, de forma
+que `dvc repro` só reexecuta o que de fato mudou.
 
 ## Próximas etapas
 
-- Pipeline DVC (`dvc.yaml`) com estágios `preprocess → feature_eng → train →
-  evaluate`, escrevendo os artefatos em `data/interim`/`data/processed`.
+- Estágios `train` e `evaluate` no `dvc.yaml`.
 - Modelo neural de recomendação (MLP/embedding) em PyTorch, comparação com
   baseline Scikit-Learn.
 - Tracking de experimentos e Model Registry no MLflow.

@@ -51,6 +51,14 @@ class IdEncoder:
         """
         return len(self._id_to_index)
 
+    def to_mapping(self) -> dict[int, int]:
+        """Retorna uma cópia do mapeamento id original -> índice.
+
+        Returns:
+            Dicionário de identificador original para índice contíguo.
+        """
+        return dict(self._id_to_index)
+
 
 def encode_user_item_ids(
     events: pd.DataFrame,

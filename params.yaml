@@ -1,0 +1,8 @@
+# Parâmetros do pipeline DVC (dvc.yaml). Alterar valores aqui invalida o
+# cache das stages que os declaram como `params`, forçando reexecução.
+
+seed: 42
+
+split:
+  val_fraction: 0.1
+  test_fraction: 0.1

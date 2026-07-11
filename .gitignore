@@ -24,11 +24,12 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
-# Dados brutos e intermediários (não versionar)
+# Dados brutos e intermediários (não versionar; ponteiros .dvc sim)
 data/raw/*
 data/interim/*
 data/processed/*
 !data/**/.gitkeep
+!data/**/*.dvc
 
 # Modelos treinados
 models/*
@@ -38,8 +39,8 @@ models/*
 mlruns/
 mlartifacts/
 
-# DVC
-/data/**/*.dvc
+# DVC (armazenamento do remote local; os arquivos .dvc DEVEM ser versionados)
+.dvc-storage/
 
 # IDE / SO
 .idea/

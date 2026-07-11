@@ -4,10 +4,10 @@ Sistema de recomendação de produtos de e-commerce baseado no dataset
 [RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset).
 
 Este repositório cobre, por enquanto, as **Etapas 1 (Clean Code e
-Estrutura)**, **2 (Ambiente e Dependências)** e o carregamento/pré-
-processamento inicial dos dados reais. Pipeline DVC, treinamento com
-PyTorch, MLflow, Model Registry e Docker serão adicionados em etapas
-futuras.
+Estrutura)**, **2 (Ambiente e Dependências)** e parte da **3
+(Containerização e Versionamento)**: dataset versionado e pipeline
+reprodutível com DVC. Treinamento com PyTorch, MLflow, Model Registry e
+Docker serão adicionados em etapas futuras.
 
 ## Objetivo
 
@@ -32,8 +32,12 @@ automatizada.
 │   └── processed/               # Dados processados
 ├── models/                      # Modelos treinados
 ├── configs/                     # Configurações em YAML (referência)
-├── scripts/                     # Scripts utilitários
-│   └── validate_env.py          # Validação do ambiente
+├── scripts/                     # Scripts utilitários e estágios do DVC
+│   ├── validate_env.py          # Validação do ambiente
+│   ├── preprocess.py            # Estágio DVC: raw -> interim
+│   └── feature_eng.py           # Estágio DVC: interim -> processed
+├── dvc.yaml / dvc.lock          # Pipeline DVC (estágios e hashes)
+├── params.yaml                  # Parâmetros do pipeline (seed, splits)
 └── docs/                        # Documentação
 ```
 
@@ -106,9 +110,50 @@ data/raw/retailrocket/
 ```
 
 Os dados brutos **não devem ser adicionados ao Git** (já ignorados no
-`.gitignore`). O versionamento reprodutível desses dados via DVC será
-adicionado em uma etapa futura.
+`.gitignore`); quem clonar o repositório recupera os mesmos bytes via
+`dvc pull` (ver seção abaixo), sem precisar baixar do Kaggle de novo.
 
 `RetailRocketDataLoader.load()` lê apenas `events.csv` (2,75M eventos de
 navegação — views, adições ao carrinho e transações), que é a fonte de
 interações usuário-item usada pelo pipeline de recomendação.
+
+## Pipeline de dados (DVC)
+
+O dataset bruto é versionado com DVC (`data/raw/retailrocket.dvc`) e o
+pipeline de pré-processamento é definido em `dvc.yaml`:
+
+```
+preprocess (raw -> interim)  →  feature_eng (interim -> processed)
+```
+
+- **`preprocess`**: lê `events.csv`, remove duplicatas/linhas inválidas
+  (`clean_events`) e grava `data/interim/events_clean.parquet`.
+- **`feature_eng`**: codifica `visitorid`/`itemid` em índices contíguos para
+  embeddings (`encode_user_item_ids`), divide em treino/validação/teste por
+  corte cronológico (`split_by_time`, parâmetros em `params.yaml`) e grava
+  `data/processed/{train,val,test}.parquet` + `{user,item}_id_map.json`.
+
+Reproduzir o pipeline do zero:
+
+```bash
+poetry run dvc repro
+```
+
+Buscar os dados já versionados (sem reprocessar), depois de clonar o
+repositório:
+
+```bash
+poetry run dvc pull
+```
+
+O remote configurado (`local-storage`) é uma pasta local (`.dvc-storage/`,
+fora do Git) — suficiente para demonstrar o fluxo `dvc add`/`dvc push`/
+`dvc pull` sem depender de credenciais de nuvem. Para uso em equipe real,
+troque por um remote S3/Azure/GCS (`dvc remote add -d ... s3://...`).
+
+> **Nota (Windows):** se o caminho do projeto for muito longo (pasta de
+> usuário + nome do repositório ultrapassando ~260 caracteres), `dvc repro`/
+> `dvc commit` pode falhar com `WinError 3` ao gravar no *run-cache* interno
+> do DVC (nomes de arquivo com hash duplicado). Solução: aponte o cache do
+> DVC para um caminho curto, só nesta máquina (não versionado):
+> `dvc cache dir "C:\dvc-cache\<nome-do-projeto>" --local`.

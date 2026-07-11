@@ -1,0 +1,27 @@
+stages:
+  preprocess:
+    cmd: python scripts/preprocess.py
+    deps:
+      - scripts/preprocess.py
+      - src/ecommerce_recommender/data_loaders
+      - src/ecommerce_recommender/preprocessing/cleaning.py
+      - data/raw/retailrocket
+    outs:
+      - data/interim/events_clean.parquet
+
+  feature_eng:
+    cmd: python scripts/feature_eng.py
+    deps:
+      - scripts/feature_eng.py
+      - src/ecommerce_recommender/preprocessing/encoding.py
+      - src/ecommerce_recommender/preprocessing/splitting.py
+      - data/interim/events_clean.parquet
+    params:
+      - split.val_fraction
+      - split.test_fraction
+    outs:
+      - data/processed/train.parquet
+      - data/processed/val.parquet
+      - data/processed/test.parquet
+      - data/processed/user_id_map.json
+      - data/processed/item_id_map.json
