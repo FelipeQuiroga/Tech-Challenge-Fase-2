@@ -4,10 +4,10 @@ Sistema de recomendação de produtos de e-commerce baseado no dataset
 [RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset).
 
 Este repositório cobre, por enquanto, as **Etapas 1 (Clean Code e
-Estrutura)**, **2 (Ambiente e Dependências)** e parte da **3
-(Containerização e Versionamento)**: dataset versionado e pipeline
-reprodutível com DVC. Treinamento com PyTorch, MLflow, Model Registry e
-Docker serão adicionados em etapas futuras.
+Estrutura)**, **2 (Ambiente e Dependências)** e **3 (Containerização e
+Versionamento, parte DVC)**: dataset versionado, pipeline reprodutível de
+dados e um modelo neural (PyTorch) já treinado e comparado com um baseline.
+MLflow, Model Registry e Docker serão adicionados em etapas futuras.
 
 ## Objetivo
 
@@ -24,20 +24,27 @@ automatizada.
 │   ├── config.py                # Configurações (Pydantic Settings)
 │   ├── exceptions.py            # Exceções específicas do domínio
 │   ├── data_loaders/            # Strategy + Factory de carregadores
-│   └── preprocessing/           # Limpeza, encoding e split temporal
+│   ├── preprocessing/           # Limpeza, encoding e split temporal
+│   ├── models/                  # Strategy + Factory de recomendadores
+│   │   ├── ncf.py               # Modelo neural (PyTorch): embeddings + MLP
+│   │   └── item_knn.py          # Baseline item-item (Scikit-Learn)
+│   └── evaluation/               # Métricas de ranking (precision/recall/…)
 ├── tests/                       # Testes (pytest)
 ├── data/
 │   ├── raw/                     # Dados brutos (não versionados)
 │   ├── interim/                 # Dados intermediários
 │   └── processed/               # Dados processados
-├── models/                      # Modelos treinados
+├── models/                      # Modelos treinados (não versionados no Git)
 ├── configs/                     # Configurações em YAML (referência)
 ├── scripts/                     # Scripts utilitários e estágios do DVC
 │   ├── validate_env.py          # Validação do ambiente
 │   ├── preprocess.py            # Estágio DVC: raw -> interim
-│   └── feature_eng.py           # Estágio DVC: interim -> processed
+│   ├── feature_eng.py           # Estágio DVC: interim -> processed
+│   ├── train.py                 # Estágio DVC: treina NCF + ajusta baseline
+│   └── evaluate.py              # Estágio DVC: compara modelos (métricas)
 ├── dvc.yaml / dvc.lock          # Pipeline DVC (estágios e hashes)
-├── params.yaml                  # Parâmetros do pipeline (seed, splits)
+├── params.yaml                  # Parâmetros do pipeline (seed, splits, modelo)
+├── metrics.json                 # Métricas da última avaliação (versionado)
 └── docs/                        # Documentação
 ```
 
@@ -120,10 +127,10 @@ interações usuário-item usada pelo pipeline de recomendação.
 ## Pipeline de dados (DVC)
 
 O dataset bruto é versionado com DVC (`data/raw/retailrocket.dvc`) e o
-pipeline de pré-processamento é definido em `dvc.yaml`:
+pipeline completo é definido em `dvc.yaml`, com 4 estágios:
 
 ```
-preprocess (raw -> interim)  →  feature_eng (interim -> processed)
+preprocess (raw → interim) → feature_eng (interim → processed) → train → evaluate
 ```
 
 - **`preprocess`**: lê `events.csv`, remove duplicatas/linhas inválidas
@@ -132,6 +139,11 @@ preprocess (raw -> interim)  →  feature_eng (interim -> processed)
   embeddings (`encode_user_item_ids`), divide em treino/validação/teste por
   corte cronológico (`split_by_time`, parâmetros em `params.yaml`) e grava
   `data/processed/{train,val,test}.parquet` + `{user,item}_id_map.json`.
+- **`train`**: treina o modelo neural (`NCFRecommender`) com early stopping
+  e ajusta o baseline (`ItemKnnRecommender`); salva `models/ncf.pt`,
+  `models/item_knn.joblib` e `models/train_history.json`.
+- **`evaluate`**: compara os dois modelos em `data/processed/test.parquet`
+  por amostragem negativa (ranking) e grava `metrics.json`.
 
 Reproduzir o pipeline do zero:
 
@@ -157,3 +169,37 @@ troque por um remote S3/Azure/GCS (`dvc remote add -d ... s3://...`).
 > do DVC (nomes de arquivo com hash duplicado). Solução: aponte o cache do
 > DVC para um caminho curto, só nesta máquina (não versionado):
 > `dvc cache dir "C:\dvc-cache\<nome-do-projeto>" --local`.
+
+## Modelo de recomendação
+
+Dois modelos implementam a mesma interface (`RecommenderStrategy`,
+`src/ecommerce_recommender/models/base.py` — Strategy + Template Method) e
+são instanciados por nome via `create_recommender` (Factory,
+`src/ecommerce_recommender/models/factory.py`):
+
+- **`ncf`** — rede neural (PyTorch): embeddings de usuário/item concatenados
+  e passados por uma MLP, treinada como classificação binária (interagiu
+  vs. amostra negativa) com amostragem negativa por época e early stopping
+  na perda de validação. Seeds fixadas (`params.yaml: seed`).
+- **`item_knn`** — baseline de filtragem colaborativa item-item: similaridade
+  de cosseno (`sklearn.metrics.pairwise.cosine_similarity`) entre os itens
+  candidatos e os itens que o usuário já conhece.
+
+Avaliação (estágio `evaluate`, `metrics.json`): para cada interação de teste
+amostrada, o item verdadeiro é ranqueado contra `n_candidate_negatives`
+itens desconhecidos do usuário; mede-se `precision@k`, `recall@k`,
+`ndcg@k` e `hit_rate@k` (parâmetros em `params.yaml: evaluate`).
+
+**Resultado da última execução** (`k=10`, 99 negativos por interação, 2.000
+interações de teste amostradas):
+
+| Modelo     | precision@10 | recall@10 | ndcg@10 | hit_rate@10 |
+| ---------- | -----------: | --------: | ------: | ----------: |
+| `ncf`      |        0.054 |     0.541 |   0.330 |       0.541 |
+| `item_knn` |        0.004 |     0.040 |   0.031 |       0.040 |
+
+O NCF supera o baseline em todas as métricas por uma margem grande (~13x em
+hit rate) — esperado: ele aprende uma representação latente sobre toda a
+distribuição de interações, enquanto o baseline só enxerga similaridade
+direta entre os poucos itens que cada usuário já tocou, em um catálogo de
+235 mil itens.

@@ -6,3 +6,18 @@ seed: 42
 split:
   val_fraction: 0.1
   test_fraction: 0.1
+
+train:
+  ncf:
+    embedding_dim: 32
+    hidden_dims: [64, 32]
+    negatives_per_positive: 4
+    batch_size: 32768
+    max_epochs: 5
+    patience: 2
+    learning_rate: 0.001
+
+evaluate:
+  k: 10
+  n_candidate_negatives: 99
+  eval_sample_size: 2000

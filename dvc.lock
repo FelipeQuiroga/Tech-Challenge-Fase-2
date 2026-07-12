@@ -70,3 +70,98 @@ stages:
       hash: md5
       md5: 73851f9d5bccbf1ea4ff511529cac7ce
       size: 5834092
+  train:
+    cmd: python scripts/train.py
+    deps:
+    - path: data/processed/item_id_map.json
+      hash: md5
+      md5: 6ab830e61e52e679e12f4605063423ca
+      size: 4063883
+    - path: data/processed/train.parquet
+      hash: md5
+      md5: ef0a5aea44c0b3fb4c0b201523d7df2b
+      size: 40578497
+    - path: data/processed/user_id_map.json
+      hash: md5
+      md5: 29a5b7c2a54dd3ff793a63e624e3b41e
+      size: 25929380
+    - path: data/processed/val.parquet
+      hash: md5
+      md5: 73851f9d5bccbf1ea4ff511529cac7ce
+      size: 5834092
+    - path: scripts/train.py
+      hash: md5
+      md5: 68687e7430ef20039d762f576766c917
+      size: 3153
+    - path: src/ecommerce_recommender/models
+      hash: md5
+      md5: 01a02f1295f20ab8fb9d7a772f60c559.dir
+      size: 48914
+      nfiles: 10
+    params:
+      params.yaml:
+        seed: 42
+        train.ncf:
+          embedding_dim: 32
+          hidden_dims:
+          - 64
+          - 32
+          negatives_per_positive: 4
+          batch_size: 32768
+          max_epochs: 5
+          patience: 2
+          learning_rate: 0.001
+    outs:
+    - path: models/item_knn.joblib
+      hash: md5
+      md5: 1ab774c0ca0294501b80419381ec1714
+      size: 29864945
+    - path: models/ncf.pt
+      hash: md5
+      md5: a59d8b4c40b0373b1b0a1f35414f2307
+      size: 210286477
+    - path: models/train_history.json
+      hash: md5
+      md5: bea2454d18e7009762bfe211e9b68caf
+      size: 521
+  evaluate:
+    cmd: python scripts/evaluate.py
+    deps:
+    - path: data/processed/test.parquet
+      hash: md5
+      md5: 69c1a3ab54c930e6a530e1a0ab9ae65e
+      size: 5837536
+    - path: models/item_knn.joblib
+      hash: md5
+      md5: 1ab774c0ca0294501b80419381ec1714
+      size: 29864945
+    - path: models/ncf.pt
+      hash: md5
+      md5: a59d8b4c40b0373b1b0a1f35414f2307
+      size: 210286477
+    - path: scripts/evaluate.py
+      hash: md5
+      md5: 32762bebef7ca2537d44053d9f0dae0b
+      size: 6503
+    - path: src/ecommerce_recommender/evaluation
+      hash: md5
+      md5: a59ffb611720f83fe140b4cf4fec599c.dir
+      size: 12269
+      nfiles: 6
+    - path: src/ecommerce_recommender/models
+      hash: md5
+      md5: 01a02f1295f20ab8fb9d7a772f60c559.dir
+      size: 48914
+      nfiles: 10
+    params:
+      params.yaml:
+        evaluate:
+          k: 10
+          n_candidate_negatives: 99
+          eval_sample_size: 2000
+        seed: 42
+    outs:
+    - path: metrics.json
+      hash: md5
+      md5: 9f89cd40ee859bbb49a914a5c682acf3
+      size: 280

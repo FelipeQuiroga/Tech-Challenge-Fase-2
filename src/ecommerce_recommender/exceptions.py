@@ -13,3 +13,7 @@ class UnsupportedDatasetError(EcommerceRecommenderError):
 
 class DatasetPathNotFoundError(EcommerceRecommenderError):
     """Lançada quando o caminho de um dataset não existe."""
+
+
+class UnsupportedModelError(EcommerceRecommenderError):
+    """Lançada quando um modelo de recomendação solicitado não é reconhecido."""

@@ -25,3 +25,36 @@ stages:
       - data/processed/test.parquet
       - data/processed/user_id_map.json
       - data/processed/item_id_map.json
+
+  train:
+    cmd: python scripts/train.py
+    deps:
+      - scripts/train.py
+      - src/ecommerce_recommender/models
+      - data/processed/train.parquet
+      - data/processed/val.parquet
+      - data/processed/user_id_map.json
+      - data/processed/item_id_map.json
+    params:
+      - seed
+      - train.ncf
+    outs:
+      - models/ncf.pt
+      - models/item_knn.joblib
+      - models/train_history.json
+
+  evaluate:
+    cmd: python scripts/evaluate.py
+    deps:
+      - scripts/evaluate.py
+      - src/ecommerce_recommender/evaluation
+      - src/ecommerce_recommender/models
+      - models/ncf.pt
+      - models/item_knn.joblib
+      - data/processed/test.parquet
+    params:
+      - seed
+      - evaluate
+    metrics:
+      - metrics.json:
+          cache: false

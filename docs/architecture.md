@@ -16,6 +16,23 @@ dados sem alterar o código cliente.
 correta a partir de um registro de nomes. Datasets não suportados resultam em
 `UnsupportedDatasetError`.
 
+### Strategy + Template Method — recomendadores
+
+`RecommenderStrategy` (`src/ecommerce_recommender/models/base.py`) define os
+métodos abstratos `fit`/`score_items` e implementa `recommend` como
+método-template (ordena os candidatos pela pontuação de `score_items`,
+comum a qualquer implementação concreta). `NCFRecommender` (PyTorch) e
+`ItemKnnRecommender` (Scikit-Learn) implementam a mesma interface e são
+intercambiáveis na avaliação.
+
+### Factory Pattern — seleção de modelo
+
+`create_recommender(name, n_users, n_items, **kwargs)`
+(`src/ecommerce_recommender/models/factory.py`) instancia `"ncf"` ou
+`"item_knn"` a partir de um registro de nomes, espelhando o mesmo padrão
+usado em `data_loaders/factory.py`. Modelos não suportados resultam em
+`UnsupportedModelError`.
+
 ## Configuração
 
 `Settings` (`config.py`) usa Pydantic Settings, carregando valores do ambiente
@@ -45,9 +62,43 @@ apenas chamam essas funções e persistem os resultados em
 `data/interim`/`data/processed` — mantendo a lógica de negócio testável
 independentemente da orquestração/IO.
 
+## Modelo neural (NCF) e treino
+
+`NCFRecommender` (`models/ncf.py`) combina embeddings de usuário/item com
+uma MLP (`_NCFModule`), treinada por classificação binária (BCE) com
+amostragem negativa. Pontos de implementação relevantes:
+
+- **Batching manual, sem `DataLoader`/`TensorDataset`**: a primeira versão
+  usava o `DataLoader` padrão do PyTorch e levava ~739s por época no
+  dataset completo (2,2M interações → ~11M linhas/época com negativos). O
+  gargalo era o overhead de indexação amostra-a-amostra do
+  `TensorDataset.__getitem__`. Reescrito para fatiar tensores diretamente
+  (`_iterate_batches`, indexação vetorizada), o que reduziu para ~70s/época
+  com `batch_size=32768` — a mesma lógica de amostragem negativa, só sem o
+  overhead de coleta por amostra.
+- **Early stopping** na perda de validação (`patience` em `params.yaml`).
+- **Seeds fixadas** (`torch.manual_seed` + `numpy.random.default_rng`) para
+  reprodutibilidade da amostragem negativa e da inicialização dos pesos.
+- `save`/`load` persistem pesos e hiperparâmetros (incluindo `hidden_dims`)
+  em um único checkpoint `.pt`, sem depender de reconstruir a arquitetura
+  manualmente na hora de avaliar.
+
+`ItemKnnRecommender` (`models/item_knn.py`) constrói uma matriz esparsa
+item-usuário (`scipy.sparse`) a partir do treino e pontua candidatos pela
+similaridade de cosseno máxima a um item conhecido do usuário.
+
+## Avaliação
+
+`scripts/evaluate.py` implementa avaliação por amostragem negativa (padrão
+comum em recomendação implícita): para cada interação de teste amostrada,
+o item verdadeiro compete contra `n_candidate_negatives` itens desconhecidos
+do usuário (excluindo itens vistos em treino/val/teste, para não vazar
+falsos negativos). As métricas (`evaluation/metrics.py`) são calculadas
+sobre esse ranking: `precision@k`, `recall@k`, `ndcg@k`, `hit_rate@k`.
+
 ## Pipeline DVC
 
-`dvc.yaml` define dois estágios, executáveis via `dvc repro`:
+`dvc.yaml` define quatro estágios, executáveis via `dvc repro`:
 
 1. **`preprocess`**: `scripts/preprocess.py` — `RetailRocketDataLoader.load()`
    + `clean_events()` → `data/interim/events_clean.parquet`.
@@ -55,17 +106,22 @@ independentemente da orquestração/IO.
    `split_by_time()` (parâmetros `split.val_fraction`/`split.test_fraction`
    em `params.yaml`) → `data/processed/{train,val,test}.parquet` e
    `{user,item}_id_map.json`.
+3. **`train`**: `scripts/train.py` — treina `NCFRecommender` (early stopping)
+   e ajusta `ItemKnnRecommender` → `models/ncf.pt`, `models/item_knn.joblib`,
+   `models/train_history.json`.
+4. **`evaluate`**: `scripts/evaluate.py` — compara os dois modelos em
+   `data/processed/test.parquet` → `metrics.json` (rastreado como `metrics`
+   no `dvc.yaml`, `cache: false` para ficar visível/diffável no Git).
 
 O dataset bruto (`data/raw/retailrocket/`) é rastreado por
 `data/raw/retailrocket.dvc` e versionado em um remote local
 (`.dvc-storage/`, configurado em `.dvc/config`). Cada estágio declara seus
-`deps` (script + módulos de origem + dados de entrada) e `outs`, de forma
-que `dvc repro` só reexecuta o que de fato mudou.
+`deps` (script + módulos de origem + dados/modelos de entrada) e `outs`, de
+forma que `dvc repro` só reexecuta o que de fato mudou.
 
 ## Próximas etapas
 
-- Estágios `train` e `evaluate` no `dvc.yaml`.
-- Modelo neural de recomendação (MLP/embedding) em PyTorch, comparação com
-  baseline Scikit-Learn.
-- Tracking de experimentos e Model Registry no MLflow.
+- Tracking de experimentos (params/métricas/artefatos de cada run) e Model
+  Registry no MLflow, promovendo o melhor modelo a Production.
+- Model Card com performance, limitações e vieses.
 - Containerização com Docker (multi-stage) e `docker-compose.yml`.
