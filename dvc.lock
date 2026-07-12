@@ -1,7 +1,7 @@
 schema: '2.0'
 stages:
   preprocess:
-    cmd: python scripts/preprocess.py
+    cmd: python -m scripts.preprocess
     deps:
     - path: data/raw/retailrocket
       hash: md5
@@ -27,7 +27,7 @@ stages:
       md5: 0c885411a48512f91cab0aa000f454c6
       size: 33149377
   feature_eng:
-    cmd: python scripts/feature_eng.py
+    cmd: python -m scripts.feature_eng
     deps:
     - path: data/interim/events_clean.parquet
       hash: md5
@@ -71,7 +71,7 @@ stages:
       md5: 73851f9d5bccbf1ea4ff511529cac7ce
       size: 5834092
   train:
-    cmd: python scripts/train.py
+    cmd: python -m scripts.train
     deps:
     - path: data/processed/item_id_map.json
       hash: md5
@@ -91,12 +91,12 @@ stages:
       size: 5834092
     - path: scripts/train.py
       hash: md5
-      md5: 68687e7430ef20039d762f576766c917
-      size: 3153
+      md5: 4d94a23387bf26b63664b651fbecef03
+      size: 5205
     - path: src/ecommerce_recommender/models
       hash: md5
-      md5: 01a02f1295f20ab8fb9d7a772f60c559.dir
-      size: 48914
+      md5: dd495a9ffee7e1bcf5d7e9e4080c1dbe.dir
+      size: 49617
       nfiles: 10
     params:
       params.yaml:
@@ -125,7 +125,7 @@ stages:
       md5: bea2454d18e7009762bfe211e9b68caf
       size: 521
   evaluate:
-    cmd: python scripts/evaluate.py
+    cmd: python -m scripts.evaluate
     deps:
     - path: data/processed/test.parquet
       hash: md5
@@ -141,8 +141,8 @@ stages:
       size: 210286477
     - path: scripts/evaluate.py
       hash: md5
-      md5: 32762bebef7ca2537d44053d9f0dae0b
-      size: 6503
+      md5: 8d04ffcfbefb75b0e735e3b09470c331
+      size: 8698
     - path: src/ecommerce_recommender/evaluation
       hash: md5
       md5: a59ffb611720f83fe140b4cf4fec599c.dir
@@ -150,8 +150,8 @@ stages:
       nfiles: 6
     - path: src/ecommerce_recommender/models
       hash: md5
-      md5: 01a02f1295f20ab8fb9d7a772f60c559.dir
-      size: 48914
+      md5: dd495a9ffee7e1bcf5d7e9e4080c1dbe.dir
+      size: 49617
       nfiles: 10
     params:
       params.yaml:

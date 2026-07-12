@@ -38,6 +38,7 @@ models/*
 # MLflow
 mlruns/
 mlartifacts/
+mlflow.db
 
 # DVC (armazenamento do remote local; os arquivos .dvc DEVEM ser versionados)
 .dvc-storage/

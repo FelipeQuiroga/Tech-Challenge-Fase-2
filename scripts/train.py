@@ -11,14 +11,18 @@ from pathlib import Path
 from typing import Any, cast
 
 import joblib
+import mlflow
+import mlflow.pytorch
 import pandas as pd
 import yaml
 
-from ecommerce_recommender.config import get_settings
+from ecommerce_recommender.config import Settings, get_settings
 from ecommerce_recommender.models import create_recommender
 from ecommerce_recommender.models.ncf import NCFRecommender
 
 _PARAMS_PATH = Path("params.yaml")
+_EXPERIMENT_NAME = "ecommerce-recommender"
+_REGISTERED_MODEL_NAME = "ncf-recommender"
 
 
 def _load_vocab_sizes(processed_dir: Path) -> tuple[int, int]:
@@ -85,6 +89,45 @@ def run(
     return {"n_users": n_users, "n_items": n_items, "epochs_trained": len(ncf.history)}
 
 
+def _log_ncf_run(settings: Settings, ncf_params: dict[str, Any], seed: int) -> None:
+    """Registra o run de treino do NCF no MLflow e o modelo no Registry.
+
+    Args:
+        settings: Configurações da aplicação (diretórios, tracking URI).
+        ncf_params: Hiperparâmetros usados no treino.
+        seed: Semente de reprodutibilidade.
+    """
+    history_path = settings.models_dir / "train_history.json"
+    history = json.loads(history_path.read_text(encoding="utf-8"))
+    ncf = NCFRecommender.load(settings.models_dir / "ncf.pt")
+    with mlflow.start_run(run_name="train-ncf"):
+        mlflow.log_params({**ncf_params, "seed": seed})
+        for entry in history:
+            mlflow.log_metric("train_loss", entry["train_loss"], step=entry["epoch"])
+            if entry["val_loss"] is not None:
+                mlflow.log_metric("val_loss", entry["val_loss"], step=entry["epoch"])
+        mlflow.log_artifact(str(history_path))
+        mlflow.pytorch.log_model(
+            ncf.module,
+            name="model",
+            registered_model_name=_REGISTERED_MODEL_NAME,
+            serialization_format="pickle",
+        )
+
+
+def _log_item_knn_run(settings: Settings, n_users: int, n_items: int) -> None:
+    """Registra o run de ajuste do baseline item-KNN no MLflow.
+
+    Args:
+        settings: Configurações da aplicação (diretórios, tracking URI).
+        n_users: Quantidade de usuários no vocabulário.
+        n_items: Quantidade de itens no vocabulário.
+    """
+    with mlflow.start_run(run_name="train-item_knn"):
+        mlflow.log_params({"n_users": n_users, "n_items": n_items})
+        mlflow.log_artifact(str(settings.models_dir / "item_knn.joblib"))
+
+
 def main() -> None:
     """Ponto de entrada do estágio ``train`` do pipeline DVC."""
     settings = get_settings()
@@ -92,6 +135,10 @@ def main() -> None:
     summary = run(
         settings.processed_data_dir, settings.models_dir, settings.seed, ncf_params
     )
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment(_EXPERIMENT_NAME)
+    _log_ncf_run(settings, ncf_params, settings.seed)
+    _log_item_knn_run(settings, summary["n_users"], summary["n_items"])
     print(f"[train] {summary}")
 
 

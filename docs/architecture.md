@@ -96,6 +96,34 @@ do usuário (excluindo itens vistos em treino/val/teste, para não vazar
 falsos negativos). As métricas (`evaluation/metrics.py`) são calculadas
 sobre esse ranking: `precision@k`, `recall@k`, `ndcg@k`, `hit_rate@k`.
 
+## MLflow: tracking, Registry e promoção
+
+`scripts/train.py` e `scripts/evaluate.py` mantêm a lógica de negócio em
+`run()` (pura, testável, sem tocar no MLflow) e isolam toda a instrumentação
+em `main()` (`_log_ncf_run`, `_log_item_knn_run`, `_log_to_mlflow`) — os
+testes chamam `run()` diretamente, sem precisar de um tracking server.
+
+- `train-ncf`: loga hiperparâmetros + seed, `train_loss`/`val_loss` por
+  época (`step=epoch`), o artefato `train_history.json` e registra o
+  próprio modelo (`mlflow.pytorch.log_model(ncf.module, ...,
+  registered_model_name="ncf-recommender")`) — `ncf.module` é uma property
+  pública que expõe o `nn.Module` interno sem quebrar o encapsulamento do
+  `NCFRecommender`.
+- `train-item_knn`: loga `n_users`/`n_items` e o artefato `item_knn.joblib`.
+- `evaluate`: loga as métricas de ambos os modelos (prefixadas por nome,
+  ex. `ncf_hit_rate`) e decide a promoção do modelo (`_promote_if_better`):
+  só promove `ncf-recommender` para `Production` (via `Staging`) se o
+  `hit_rate` do NCF superar o do baseline nessa avaliação, e arquiva
+  automaticamente a versão anterior em Production
+  (`archive_existing_versions=True`) para nunca haver duas versões
+  simultâneas em produção.
+
+Tracking URI padrão: `sqlite:///mlflow.db` (backend local, sem precisar de
+`mlflow server` — que tem um bug de import conhecido nesta combinação
+Python 3.14 + MLflow 3.x). O SQLite já suporta o Model Registry
+completamente; `mlflow ui --backend-store-uri sqlite:///mlflow.db` expõe a
+UI para inspeção.
+
 ## Pipeline DVC
 
 `dvc.yaml` define quatro estágios, executáveis via `dvc repro`:
@@ -108,10 +136,18 @@ sobre esse ranking: `precision@k`, `recall@k`, `ndcg@k`, `hit_rate@k`.
    `{user,item}_id_map.json`.
 3. **`train`**: `scripts/train.py` — treina `NCFRecommender` (early stopping)
    e ajusta `ItemKnnRecommender` → `models/ncf.pt`, `models/item_knn.joblib`,
-   `models/train_history.json`.
+   `models/train_history.json`; loga tudo no MLflow e registra o NCF no
+   Model Registry.
 4. **`evaluate`**: `scripts/evaluate.py` — compara os dois modelos em
    `data/processed/test.parquet` → `metrics.json` (rastreado como `metrics`
-   no `dvc.yaml`, `cache: false` para ficar visível/diffável no Git).
+   no `dvc.yaml`, `cache: false` para ficar visível/diffável no Git); loga
+   as métricas no MLflow e decide a promoção do NCF a Production.
+
+Todos os estágios rodam via `python -m scripts.<nome>` (não
+`python scripts/<nome>.py`) — `evaluate.py` importa constantes de
+`scripts/train.py`, e o módulo `scripts` só é resolvido corretamente com a
+raiz do projeto no `sys.path`, o que `-m` garante a partir do diretório de
+trabalho (a raiz, de onde o `dvc repro` roda).
 
 O dataset bruto (`data/raw/retailrocket/`) é rastreado por
 `data/raw/retailrocket.dvc` e versionado em um remote local
@@ -121,7 +157,7 @@ forma que `dvc repro` só reexecuta o que de fato mudou.
 
 ## Próximas etapas
 
-- Tracking de experimentos (params/métricas/artefatos de cada run) e Model
-  Registry no MLflow, promovendo o melhor modelo a Production.
 - Model Card com performance, limitações e vieses.
-- Containerização com Docker (multi-stage) e `docker-compose.yml`.
+- Containerização com Docker (multi-stage) e `docker-compose.yml`,
+  incluindo um serviço de `mlflow server` (ou apontando para o backend
+  SQLite via volume compartilhado).

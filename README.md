@@ -4,10 +4,11 @@ Sistema de recomendação de produtos de e-commerce baseado no dataset
 [RetailRocket](https://www.kaggle.com/datasets/retailrocket/ecommerce-dataset).
 
 Este repositório cobre, por enquanto, as **Etapas 1 (Clean Code e
-Estrutura)**, **2 (Ambiente e Dependências)** e **3 (Containerização e
-Versionamento, parte DVC)**: dataset versionado, pipeline reprodutível de
-dados e um modelo neural (PyTorch) já treinado e comparado com um baseline.
-MLflow, Model Registry e Docker serão adicionados em etapas futuras.
+Estrutura)**, **2 (Ambiente e Dependências)**, **3 (DVC)** e parte da **4
+(MLflow + Model Registry)**: dataset versionado, pipeline reprodutível de
+dados, um modelo neural (PyTorch) treinado e comparado com um baseline, com
+experimentos rastreados e o melhor modelo promovido a Production no MLflow
+Model Registry. Docker será adicionado em etapa futura.
 
 ## Objetivo
 
@@ -45,6 +46,7 @@ automatizada.
 ├── dvc.yaml / dvc.lock          # Pipeline DVC (estágios e hashes)
 ├── params.yaml                  # Parâmetros do pipeline (seed, splits, modelo)
 ├── metrics.json                 # Métricas da última avaliação (versionado)
+├── mlflow.db                    # Tracking/Registry do MLflow (SQLite, local)
 └── docs/                        # Documentação
 ```
 
@@ -69,7 +71,8 @@ cp .env.example .env
 
 Todas as variáveis podem ser sobrescritas por variáveis de ambiente ou pelo
 arquivo `.env`. As principais são: `ENVIRONMENT`, `PROJECT_NAME`, `LOG_LEVEL`,
-`SEED`, os diretórios de dados/modelos e `MLFLOW_TRACKING_URI`.
+`SEED`, os diretórios de dados/modelos e `MLFLOW_TRACKING_URI` (por padrão,
+`sqlite:///mlflow.db` — ver seção MLflow abaixo).
 
 ## Execução dos testes
 
@@ -203,3 +206,43 @@ hit rate) — esperado: ele aprende uma representação latente sobre toda a
 distribuição de interações, enquanto o baseline só enxerga similaridade
 direta entre os poucos itens que cada usuário já tocou, em um catálogo de
 235 mil itens.
+
+## MLflow: tracking e Model Registry
+
+Cada `dvc repro` gera **3 runs** no experimento `ecommerce-recommender`
+(estágios `train` e `evaluate`, ver `scripts/train.py`/`scripts/evaluate.py`):
+
+- **`train-ncf`**: params (hiperparâmetros do NCF + seed), métricas
+  `train_loss`/`val_loss` por época, artefato `train_history.json` e o
+  próprio modelo, registrado no Model Registry como `ncf-recommender`
+  (`mlflow.pytorch.log_model(..., registered_model_name=...)`).
+- **`train-item_knn`**: params (`n_users`, `n_items`) e o artefato
+  `item_knn.joblib`.
+- **`evaluate`**: params de avaliação e as métricas de ambos os modelos
+  (`ncf_precision`, `item_knn_hit_rate`, etc.), mais o artefato
+  `metrics.json`.
+
+**Promoção automática (quality gate):** ao final do estágio `evaluate`,
+`_promote_if_better` só promove a versão recém-treinada do `ncf-recommender`
+a `Production` (via `Staging` primeiro) se o `hit_rate` do NCF superar o do
+baseline nessa avaliação — senão, a versão em Production anterior
+permanece. Ao promover, a versão anterior é automaticamente arquivada
+(`archive_existing_versions=True`), garantindo só uma versão em Production
+por vez.
+
+Por padrão, o tracking usa um backend **SQLite local** (`sqlite:///mlflow.db`,
+sem precisar rodar `mlflow server`) — o Model Registry funciona normalmente
+com esse backend. Para navegar pela UI:
+
+```bash
+poetry run mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+> **Nota:** `mlflow server` (o modo cliente-servidor via HTTP, útil para
+> times/Docker) tem um bug de incompatibilidade com Python 3.14 nesta
+> versão do MLflow (`ImportError` em `mlflow.assistant.skill_installer`,
+> recurso novo do MLflow 3.x). O backend SQLite direto evita o problema por
+> completo e é suficiente para tracking + Registry local. Se quiser tentar
+> o servidor mesmo assim (ex.: outra versão do MLflow), configure
+> `MLFLOW_TRACKING_URI=http://127.0.0.1:5000` e rode
+> `mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root ./mlartifacts`.

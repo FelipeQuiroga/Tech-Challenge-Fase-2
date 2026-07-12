@@ -291,6 +291,15 @@ class NCFRecommender(RecommenderStrategy):
             logits = self._model(users, items)
         return torch.sigmoid(logits).numpy()
 
+    @property
+    def module(self) -> nn.Module:
+        """Expõe o módulo PyTorch subjacente (ex.: para logar no MLflow).
+
+        Returns:
+            A rede neural treinada (embeddings + MLP).
+        """
+        return self._model
+
     def save(self, path: Path) -> None:
         """Salva os pesos e hiperparâmetros do modelo em disco.
 

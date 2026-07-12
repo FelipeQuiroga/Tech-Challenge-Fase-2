@@ -1,6 +1,6 @@
 stages:
   preprocess:
-    cmd: python scripts/preprocess.py
+    cmd: python -m scripts.preprocess
     deps:
       - scripts/preprocess.py
       - src/ecommerce_recommender/data_loaders
@@ -10,7 +10,7 @@ stages:
       - data/interim/events_clean.parquet
 
   feature_eng:
-    cmd: python scripts/feature_eng.py
+    cmd: python -m scripts.feature_eng
     deps:
       - scripts/feature_eng.py
       - src/ecommerce_recommender/preprocessing/encoding.py
@@ -27,7 +27,7 @@ stages:
       - data/processed/item_id_map.json
 
   train:
-    cmd: python scripts/train.py
+    cmd: python -m scripts.train
     deps:
       - scripts/train.py
       - src/ecommerce_recommender/models
@@ -44,7 +44,7 @@ stages:
       - models/train_history.json
 
   evaluate:
-    cmd: python scripts/evaluate.py
+    cmd: python -m scripts.evaluate
     deps:
       - scripts/evaluate.py
       - src/ecommerce_recommender/evaluation

@@ -27,7 +27,7 @@ class Settings(BaseSettings):
         interim_data_dir: Diretório dos dados intermediários.
         processed_data_dir: Diretório dos dados processados.
         models_dir: Diretório onde os modelos treinados são salvos.
-        mlflow_tracking_uri: Endereço do servidor de tracking do MLflow.
+        mlflow_tracking_uri: Endereço/URI de tracking do MLflow.
     """
 
     model_config = SettingsConfigDict(
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     processed_data_dir: Path = PROJECT_ROOT / "data" / "processed"
     models_dir: Path = PROJECT_ROOT / "models"
 
-    mlflow_tracking_uri: str = Field(default="http://127.0.0.1:5000")
+    mlflow_tracking_uri: str = Field(default="sqlite:///mlflow.db")
 
     @field_validator("seed")
     @classmethod

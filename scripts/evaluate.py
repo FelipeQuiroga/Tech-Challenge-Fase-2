@@ -15,14 +15,17 @@ from pathlib import Path
 from typing import Any
 
 import joblib
+import mlflow
 import numpy as np
 import pandas as pd
 import yaml
+from mlflow.tracking import MlflowClient
 
 from ecommerce_recommender.config import get_settings
 from ecommerce_recommender.evaluation import evaluate_rankings
 from ecommerce_recommender.models.base import RecommenderStrategy
 from ecommerce_recommender.models.ncf import NCFRecommender
+from scripts.train import _EXPERIMENT_NAME, _REGISTERED_MODEL_NAME
 
 _PARAMS_PATH = Path("params.yaml")
 _METRICS_PATH = Path("metrics.json")
@@ -160,6 +163,61 @@ def run(
     return results
 
 
+def _promote_if_better(results: dict[str, dict[str, float]]) -> bool:
+    """Promove a versão mais recente do NCF a Production se superar o baseline.
+
+    Quality gate simples: só promove se o ``hit_rate`` do NCF for maior que
+    o do baseline item-KNN nesta avaliação.
+
+    Args:
+        results: Métricas por modelo, como retornadas por :func:`run`.
+
+    Returns:
+        ``True`` se o modelo foi promovido a Production.
+    """
+    if results["ncf"]["hit_rate"] <= results["item_knn"]["hit_rate"]:
+        return False
+    client = MlflowClient()
+    versions = client.search_model_versions(f"name='{_REGISTERED_MODEL_NAME}'")
+    if not versions:
+        return False
+    latest = max(versions, key=lambda version: int(version.version))
+    client.transition_model_version_stage(
+        _REGISTERED_MODEL_NAME, latest.version, "Staging"
+    )
+    client.transition_model_version_stage(
+        _REGISTERED_MODEL_NAME,
+        latest.version,
+        "Production",
+        archive_existing_versions=True,
+    )
+    return True
+
+
+def _log_to_mlflow(
+    eval_params: dict[str, Any], results: dict[str, dict[str, float]]
+) -> bool:
+    """Registra a avaliação no MLflow e decide a promoção do modelo no Registry.
+
+    Args:
+        eval_params: Parâmetros de avaliação usados.
+        results: Métricas de ranking por modelo.
+
+    Returns:
+        ``True`` se o NCF foi promovido a Production nesta avaliação.
+    """
+    with mlflow.start_run(run_name="evaluate"):
+        mlflow.log_params(eval_params)
+        for model_name, metrics in results.items():
+            mlflow.log_metrics(
+                {f"{model_name}_{name}": v for name, v in metrics.items()}
+            )
+        mlflow.log_artifact(str(_METRICS_PATH))
+        promoted = _promote_if_better(results)
+        mlflow.set_tag("ncf_promoted_to_production", promoted)
+    return promoted
+
+
 def main() -> None:
     """Ponto de entrada do estágio ``evaluate`` do pipeline DVC."""
     settings = get_settings()
@@ -173,7 +231,11 @@ def main() -> None:
         seed=settings.seed,
     )
     _METRICS_PATH.write_text(json.dumps(results, indent=2), encoding="utf-8")
-    print(f"[evaluate] {json.dumps(results, indent=2)}")
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment(_EXPERIMENT_NAME)
+    promoted = _log_to_mlflow(eval_params, results)
+    print(f"[evaluate] promoted_to_production={promoted}")
+    print(json.dumps(results, indent=2))
 
 
 if __name__ == "__main__":
