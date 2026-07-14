@@ -111,7 +111,6 @@ def _log_ncf_run(settings: Settings, ncf_params: dict[str, Any], seed: int) -> N
             ncf.module,
             name="model",
             registered_model_name=_REGISTERED_MODEL_NAME,
-            serialization_format="pickle",
         )
 
 

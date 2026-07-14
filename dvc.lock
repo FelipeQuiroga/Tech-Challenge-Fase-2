@@ -24,15 +24,15 @@ stages:
     outs:
     - path: data/interim/events_clean.parquet
       hash: md5
-      md5: 0c885411a48512f91cab0aa000f454c6
-      size: 33149377
+      md5: 6f5690fcfeaed82987dad27e62eacf12
+      size: 33474895
   feature_eng:
     cmd: python -m scripts.feature_eng
     deps:
     - path: data/interim/events_clean.parquet
       hash: md5
-      md5: 0c885411a48512f91cab0aa000f454c6
-      size: 33149377
+      md5: 6f5690fcfeaed82987dad27e62eacf12
+      size: 33474895
     - path: scripts/feature_eng.py
       hash: md5
       md5: e89a3b4132acc477c9f7b4c83a4511af
@@ -56,20 +56,20 @@ stages:
       size: 4063883
     - path: data/processed/test.parquet
       hash: md5
-      md5: 69c1a3ab54c930e6a530e1a0ab9ae65e
-      size: 5837536
+      md5: 5f3a534f0e20b88c34aab02f30aa19ec
+      size: 6019059
     - path: data/processed/train.parquet
       hash: md5
-      md5: ef0a5aea44c0b3fb4c0b201523d7df2b
-      size: 40578497
+      md5: 525c4f8ba084d2817493d110516e6b17
+      size: 41085418
     - path: data/processed/user_id_map.json
       hash: md5
       md5: 29a5b7c2a54dd3ff793a63e624e3b41e
       size: 25929380
     - path: data/processed/val.parquet
       hash: md5
-      md5: 73851f9d5bccbf1ea4ff511529cac7ce
-      size: 5834092
+      md5: 80c8af4b875d8979ef5b911bf4ce9ce8
+      size: 6015427
   train:
     cmd: python -m scripts.train
     deps:
@@ -79,20 +79,20 @@ stages:
       size: 4063883
     - path: data/processed/train.parquet
       hash: md5
-      md5: ef0a5aea44c0b3fb4c0b201523d7df2b
-      size: 40578497
+      md5: 525c4f8ba084d2817493d110516e6b17
+      size: 41085418
     - path: data/processed/user_id_map.json
       hash: md5
       md5: 29a5b7c2a54dd3ff793a63e624e3b41e
       size: 25929380
     - path: data/processed/val.parquet
       hash: md5
-      md5: 73851f9d5bccbf1ea4ff511529cac7ce
-      size: 5834092
+      md5: 80c8af4b875d8979ef5b911bf4ce9ce8
+      size: 6015427
     - path: scripts/train.py
       hash: md5
-      md5: 4d94a23387bf26b63664b651fbecef03
-      size: 5205
+      md5: 0930a28122d9966d72fded5cb29253a0
+      size: 5162
     - path: src/ecommerce_recommender/models
       hash: md5
       md5: dd495a9ffee7e1bcf5d7e9e4080c1dbe.dir
@@ -129,8 +129,8 @@ stages:
     deps:
     - path: data/processed/test.parquet
       hash: md5
-      md5: 69c1a3ab54c930e6a530e1a0ab9ae65e
-      size: 5837536
+      md5: 5f3a534f0e20b88c34aab02f30aa19ec
+      size: 6019059
     - path: models/item_knn.joblib
       hash: md5
       md5: 1ab774c0ca0294501b80419381ec1714

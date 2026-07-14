@@ -16,6 +16,10 @@ data/processed
 models
 mlruns
 mlartifacts
+mlflow.db
+.dvc
+.dvc-storage
 docs
 tests
 *.md
+!README.md
